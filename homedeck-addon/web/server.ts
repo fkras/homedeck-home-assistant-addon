@@ -124,7 +124,13 @@ function scanMdns() {
             mdnsInstances.push(mdnsInstance);
 
             mdnsInstance.on('response', response => {
-                response.answers.filter(answer => answer.name === '_homedeck._tcp.local' && answer.type === 'PTR')
+                // python-zeroconf (used by homedeck's server.py) packs the SRV/A/TXT
+                // records into `answers` rather than `additionals`, so both sections
+                // must be scanned. Reading only `additionals` leaves every device
+                // without an address or port, and /devices then returns nothing.
+                const records = [...response.answers, ...(response.additionals ?? [])];
+
+                records.filter(answer => answer.name === '_homedeck._tcp.local' && answer.type === 'PTR')
                     .forEach(answer => {
                         const host = (answer as StringAnswer).data;
                         if (!MDNS_SERVICES[host]) {
@@ -133,7 +139,15 @@ function scanMdns() {
                         MDNS_SERVICES[host].name = host;
                     });
 
-                response.additionals.forEach(answer => {
+                // SRV must be applied before A, otherwise the A handler (which
+                // matches on the SRV target) can't attach the address yet. Record
+                // order inside a response is not guaranteed, so sort explicitly.
+                const ORDER: Record<string, number> = { SRV: 0, TXT: 1, A: 2 };
+                const sorted = [...records].sort(
+                    (a, b) => (ORDER[a.type] ?? 9) - (ORDER[b.type] ?? 9),
+                );
+
+                sorted.forEach(answer => {
                     switch (answer.type) {
                         case 'SRV':
                             if (!(answer.name in MDNS_SERVICES)) {
