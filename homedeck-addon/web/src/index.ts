@@ -251,6 +251,19 @@ function setupEditor() {
             comments: false,
             strings: true,
         },
+
+        // Paste YAML verbatim. Monaco re-indents pasted lines by default,
+        // which adds indentation to text that already has it - in YAML that
+        // silently changes the nesting and breaks the document.
+        autoIndent: 'none',
+        formatOnPaste: false,
+        formatOnType: false,
+
+        // YAML is space-indented; a stray tab is a parse error
+        insertSpaces: true,
+        tabSize: 2,
+        detectIndentation: false,
+
         model: monaco.editor.createModel('', 'yaml', monaco.Uri.parse('file:///homedeck.yaml')),
     });
 

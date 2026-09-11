@@ -1,6 +1,6 @@
 ---
 name: HomeDeck Manager
-version: "0.1.1"
+version: "0.1.2"
 slug: homedeck_manager_ingress
 description: Ingress addon to manage HomeDeck devices
 arch:

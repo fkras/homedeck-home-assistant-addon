@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.2
+
+- Paste YAML verbatim. Monaco re-indents pasted text by default, which added
+  indentation to lines that already had it - in YAML that silently changes the
+  nesting, so a pasted configuration came out shifted right and invalid.
+  `autoIndent`, `formatOnPaste` and `formatOnType` are now off, and the editor
+  is pinned to 2-space indentation rather than guessing it from the document.
+
 ## 0.1.1
 
 - Fix device discovery finding nothing. The mDNS scanner read the SRV/A/TXT
