@@ -338,6 +338,9 @@ export function ButtonEditor({ state, editing }: { state: State; editing: Editin
                                     supported: Boolean(state.schema?.$defs?.Transition),
                                     inherited: placeholder('transition'),
                                     origin: origin('transition'),
+                                    triggerSupported: Boolean(state.schema?.$defs?.TransitionTrigger),
+                                    inheritedTrigger: placeholder('transition_trigger'),
+                                    triggerOrigin: origin('transition_trigger'),
                                 }}
                             />
                         )}
@@ -770,7 +773,14 @@ function StatesTab({ draft, set, inheritedStates, entityId, hass, onPreview, tra
     entityId?: string;
     hass: HassStates;
     onPreview: (state: string) => void;
-    transition: { supported: boolean; inherited?: string; origin: string | null };
+    transition: {
+        supported: boolean;
+        inherited?: string;
+        origin: string | null;
+        triggerSupported: boolean;
+        inheritedTrigger?: string;
+        triggerOrigin: string | null;
+    };
 }) {
     const own: Dict = draft.states ?? {};
     const [adding, setAdding] = useState('');
@@ -792,6 +802,7 @@ function StatesTab({ draft, set, inheritedStates, entityId, hass, onPreview, tra
 
     const fade = draft.transition;
     const effectiveFade = Number(fade ?? transition.inherited ?? 0);
+    const trigger = draft.transition_trigger ?? transition.inheritedTrigger ?? 'press';
 
     return (
         <div class="states-tab">
@@ -831,6 +842,26 @@ function StatesTab({ draft, set, inheritedStates, entityId, hass, onPreview, tra
                     </div>
                 </div>
             </Field>
+
+            {effectiveFade > 0 && transition.triggerSupported && (
+                <Field
+                    label="Start the fade"
+                    inherited={'transition_trigger' in draft ? null : transition.triggerOrigin}
+                    onReset={'transition_trigger' in draft ? () => set('transition_trigger', undefined) : undefined}
+                    hint={trigger === 'press'
+                        ? <>On the tap, toward the state a toggle, turn on or turn off leads to - in step with a light that dims itself. If Home Assistant refuses it, or doesn't report the state within 6 s, the key fades back.</>
+                        : <>When Home Assistant reports the new state - the key only ever shows a confirmed state, but trails the light by however long the integration takes to report.</>}
+                >
+                    <Segmented
+                        value={trigger as 'press' | 'state'}
+                        onChange={v => set('transition_trigger', v === 'press' && !('transition_trigger' in draft) && (transition.inheritedTrigger ?? 'press') === 'press' ? undefined : v)}
+                        options={[
+                            { value: 'press', label: 'On press' },
+                            { value: 'state', label: 'When Home Assistant reports' },
+                        ]}
+                    />
+                </Field>
+            )}
 
             <p class="dim">
                 Change how the key looks while its entity is in a given state. Only the fields you set are
@@ -934,7 +965,7 @@ function PresetChain({ model, draft, hass }: { model: Model; draft: Dict; hass: 
 }
 
 const FORM_KEYS = new Set([
-    'presets', 'entity_id', 'domain', 'name', 'visibility', 'tap_action', 'hold_action', 'states', 'transition',
+    'presets', 'entity_id', 'domain', 'name', 'visibility', 'tap_action', 'hold_action', 'states', 'transition', 'transition_trigger',
     'icon', 'icon_variant', 'icon_size', 'icon_padding', 'icon_offset', 'icon_border_radius', 'icon_border_width',
     'icon_border_color', 'icon_brightness', 'icon_color', 'icon_background_color', 'icon_size_mode',
     'text', 'text_color', 'text_align', 'text_font', 'text_size', 'text_offset',

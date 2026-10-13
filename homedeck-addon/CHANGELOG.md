@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0
+
+- Choose when a key's fade starts: **On press** (the default) or **When Home
+  Assistant reports** the new state - "Start the fade" on the States tab,
+  `transition_trigger` in YAML. On press keeps the key in step with a light
+  that dims itself, where waiting for the report left it trailing. Needs a
+  HomeDeck that supports `transition_trigger`; with an older one the choice
+  isn't shown.
+
 ## 0.3.1
 
 - The preview pages buttons over sub-pages the way HomeDeck now does: a
