@@ -1,0 +1,425 @@
+# DON'T EDIT THIS FILE. IT WILL BE RESET AFTER EACH UPDATE.
+# EDIT assets/configuration.yml INSTEAD
+brightness: 80
+
+# The D200's sleep-time setting, in minutes, as Ulanzi Studio sends it (its
+# default is 0). Dimming is handled by "sleep" below.
+deck_sleep_timeout: 0
+
+# Flash the deck's "!" on a key whose Home Assistant action failed
+alert_on_error: true
+
+# Image for the deck's own screensaver, relative to assets/ (e.g.
+# screensaver.jpg). Unset leaves whatever the deck has.
+screensaver: null
+
+label_style:
+  align: bottom
+  color: FFFFFF
+  font: 8
+  show_title: true
+  size: 9
+  weight: 80
+
+sleep:
+  dim_brightness: 10
+  dim_timeout: 30
+  sleep_timeout: 300
+
+  # Time-of-day brightness windows (local time, 24h "HH:MM"). Windows may wrap
+  # midnight. Empty by default; see assets/configuration.yml.example for a
+  # wall-mounted always-on setup.
+  schedule: []
+
+system_buttons:
+  $page.back:
+    position: 1
+    button:
+      presets: $page
+      tap_action:
+        action: $page.back
+      icon: mdi:arrow-up-left
+  $page.previous:
+    position: 2
+    button:
+      presets: $page
+      tap_action:
+        action: $page.previous
+      icon: mdi:chevron-left
+  $page.next:
+    position: 3
+    button:
+      presets: $page
+      tap_action:
+        action: $page.next
+      icon: mdi:chevron-right
+
+presets:
+  $default:
+    icon_size: 60
+    icon_color: FFFFFF
+    icon_padding: 40
+    icon_variant: duotone
+
+    text_color: FFFFFF
+    text_align: bottom
+    text_size: 24
+    text_font: Roboto-SemiBold
+
+  $page:
+    icon_padding: 10
+    icon_border_radius: 10
+    icon_border_width: 4
+    icon_variant: fill
+    icon_offset: 0
+    icon_size: 100
+
+  $page.go_to:
+    presets: $page
+
+  $light:
+    name: "{{ 'On' if self_states() == 'on' else 'Off' }}"
+    tap_action:
+      action: light.toggle
+
+    hold_action:
+      action: $page.go_to
+      data: $light
+
+    icon: mdi:lightbulb-outline
+    icon_color: FFFFFF
+
+    states:
+      'on':
+        icon: |
+          {% set percentage = ((self_state_attr('brightness') or 255) / 255) * 100 %}
+          {% set mapped_percentage = (((percentage // 10) * 10) if percentage % 10 == 0 else (((percentage // 10) + 1) * 10)) | int %}
+          {% if mapped_percentage == 100 %}
+            mdi:lightbulb-on
+          {% else %}
+            {{ 'mdi:lightbulb-on-' ~ mapped_percentage }}
+          {% endif %}
+
+        icon_color: FFEC27
+
+  # Sensors
+  $sensor:
+    icon: mdi:eye
+    icon_offset: -10
+    text: "{{ self_states() ~ (self_state_attr('unit_of_measurement') or '') }}"
+    text_align: center
+    text_offset: 0 40
+
+  $sensor.battery:
+    icon: |
+        {% set percentage = self_states() or 0 %}
+        {% set mapped_percentage = (((percentage // 10) * 10) if percentage % 10 == 0 else (((percentage // 10) + 1) * 10)) | int %}
+        {% if mapped_percentage == 100 %}
+          mdi:battery
+        {% elif mapped_percentage == 0 %}
+          mdi:battery-alert-variant-outline
+        {% else %}
+          {{ 'mdi:battery-' ~ mapped_percentage }}
+        {% endif %}
+    text: "{{ self_states() ~ '%'}}"
+
+  $sensor.carbon_dioxide:
+    # name: 'Carbon Dioxide Level'
+    icon: mdi:molecule-co2
+
+  $sensor.carbon_monoxide:
+    # name: 'Carbon Monoxide Level'
+    icon: mdi:molecule-co
+
+  $sensor.current:
+    # name: 'Current Power'
+    icon: mdi:current-ac
+
+  $sensor.data_rate:
+    # name: 'Data Rate'
+    icon: mdi:transmission-tower
+
+  $sensor.data_size:
+    # name: 'Data Size'
+    icon: mdi:database
+
+  $sensor.date:
+    # name: 'Date'
+    icon: mdi:calendar
+
+  $sensor.distance:
+    # name: 'Distance'
+    icon: mdi:map-marker-distance
+
+  $sensor.duration:
+    # name: 'Duration'
+    icon: mdi:timer-outline
+
+  $sensor.energy:
+    # name: 'Energy Consumption'
+    icon: mdi:lightning-bolt
+
+  $sensor.frequency:
+    # name: 'Frequency'
+    icon: mdi:sine-wave
+
+  $sensor.gas:
+    # name: 'Gas Level'
+    icon: mdi:gas-cylinder
+
+  $sensor.humidity:
+    # name: 'Humidity Level'
+    icon: mdi:water-percent
+
+  $sensor.illuminance:
+    # name: 'Light Intensity'
+    icon: mdi:brightness-5
+
+  $sensor.moisture:
+    # name: 'Soil Moisture'
+    icon: mdi:water
+
+  $sensor.monetary:
+    # name: 'Monetary Value'
+    icon: mdi:cash
+
+  $sensor.temperature:
+    # name: 'Temperature'
+    icon: mdi:thermometer
+
+  $sensor.power:
+    # name: 'Power'
+    icon: mdi:sine-wave
+
+  $sensor.pressure:
+    # name: 'Pressure'
+    icon: mdi:gauge
+
+  $sensor.speed:
+    # name: 'Speed'
+    icon: mdi:speedometer
+
+  $sensor.voltage:
+    # name: 'Voltage'
+    icon: mdi:sine-wave
+
+  $sensor.volume:
+    # name: 'Volume'
+    icon: mdi:cup-water
+
+  $sensor.weight:
+    # name: 'Weight'
+    icon: mdi:scale
+
+  $sensor.wind_speed:
+    # name: 'Wind Speed'
+    icon: mdi:weather-windy
+
+  # Binary sensors
+  $binary_sensor:
+    icon_size: 60
+    icon_color: FFFFFF
+    icon_offset: -10
+    text: "{{ self_binary_text('On', 'Off') }}"
+    text_align: center
+    text_offset: 0 40
+
+    states:
+      'on':
+        icon_color: 80FF00
+
+  $binary_sensor.battery:
+    text: "{{ self_binary_text('Alert', 'Normal') }}"
+    icon: mdi:battery
+    states:
+      'on':
+        icon: mdi:battery-alert
+
+  $binary_sensor.battery_charging:
+    text: "{{ self_binary_text('Charging', 'Charged') }}"
+    icon: mdi:battery
+    states:
+      'on':
+        icon: mdi:battery-charging
+
+  $binary_sensor.carbon_monoxide:
+    text: "{{ self_binary_text('Detected', 'Clear') }}"
+    icon: mdi:smoke-detector
+    states:
+      'on':
+        icon: mdi:smoke-detector-alert
+
+  $binary_sensor.cold:
+    text: "{{ self_binary_text('Cold', 'Normal') }}"
+    icon: mdi:thermometer
+    states:
+      'on':
+        icon: mdi:snowflake
+
+  $binary_sensor.connectivity:
+    text: "{{ self_binary_text('Connected', 'Disconnected') }}"
+    icon: mdi:wifi-off
+    states:
+      'on':
+        icon: mdi:wifi
+
+  $binary_sensor.door:
+    text: "{{ self_binary_text('Open', 'Closed') }}"
+    icon: mdi:door-closed
+    states:
+      'on':
+        icon: mdi:door-open
+
+  $binary_sensor.garage_door:
+    text: "{{ self_binary_text('Open', 'Closed') }}"
+    icon: mdi:garage
+    states:
+      'on':
+        icon: mdi:garage-open
+
+  $binary_sensor.gas:
+    text: "{{ self_binary_text('Detected', 'Clear') }}"
+    icon: mdi:gas-cylinder
+    states:
+      'on':
+        icon: mdi:gas-burner
+
+  $binary_sensor.heat:
+    text: "{{ self_binary_text('Heating', 'No Heating') }}"
+    icon: mdi:thermometer
+    states:
+      'on':
+        icon: mdi:fire
+
+  $binary_sensor.light:
+    text: "{{ self_binary_text('On', 'Off') }}"
+    icon: mdi:brightness-2
+    states:
+      'on':
+        icon: mdi:brightness-5
+
+  $binary_sensor.lock:
+    text: "{{ self_binary_text('Unlocked', 'Locked') }}"
+    icon: mdi:lock
+    states:
+      'on':
+        icon: mdi:lock-open
+
+  $binary_sensor.moisture:
+    text: "{{ self_binary_text('Detected', 'Clear') }}"
+    icon: mdi:water-check
+    states:
+      'on':
+        icon: mdi:water-alert
+
+  $binary_sensor.motion:
+    text: "{{ self_binary_text('Detected', 'Clear') }}"
+    icon: mdi:motion-sensor-off
+    states:
+      'on':
+        icon: mdi:motion-sensor
+
+  $binary_sensor.occupancy:
+    text: "{{ self_binary_text('Occupied', 'Clear') }}"
+    icon: mdi:home-outline
+    states:
+      'on':
+        icon: mdi:home
+
+  $binary_sensor.opening:
+    text: "{{ self_binary_text('Opening', 'Closed') }}"
+    icon: mdi:door-closed
+    states:
+      'on':
+        icon: mdi:door-open
+
+  $binary_sensor.plug:
+    text: "{{ self_binary_text('Plugged', 'Unplugged') }}"
+    icon: mdi:power-plug-off
+    states:
+      'on':
+        icon: mdi:power-plug
+
+  $binary_sensor.power:
+    text: "{{ self_binary_text('On', 'Off') }}"
+    icon: mdi:power-off
+    states:
+      'on':
+        icon: mdi:power
+
+  $binary_sensor.presence:
+    text: "{{ self_binary_text('Detected', 'Clear') }}"
+    icon: mdi:account-off
+    states:
+      'on':
+        icon: mdi:account
+
+  $binary_sensor.problem:
+    text: "{{ self_binary_text('Detected', 'Clear') }}"
+    icon: mdi:check-circle
+    states:
+      'on':
+        icon: mdi:alert-circle
+
+  $binary_sensor.running:
+    text: "{{ self_binary_text('Running', 'Stopped') }}"
+    icon: mdi:stop
+    states:
+      'on':
+        icon: mdi:play
+
+  $binary_sensor.safety:
+    text: "{{ self_binary_text('Issue', 'Safe') }}"
+    icon: mdi:shield-check
+    states:
+      'on':
+        icon: mdi:alert
+
+  $binary_sensor.smoke:
+    text: "{{ self_binary_text('Detected', 'Clear') }}"
+    icon: mdi:smoke-detector
+    states:
+      'on':
+        icon: mdi:smoke-detector-alert
+
+  $binary_sensor.sound:
+    text: "{{ self_binary_text('On', 'Off') }}"
+    icon: mdi:volume-off
+    states:
+      'on':
+        icon: mdi:volume-high
+
+  $binary_sensor.tamper:
+    text: "{{ self_binary_text('Detected', 'Clear') }}"
+    icon: mdi:shield-check
+    states:
+      'on':
+        icon: mdi:shield-alert
+
+  $binary_sensor.update:
+    text: "{{ self_binary_text('Available', 'None') }}"
+    icon: mdi:package
+    states:
+      'on':
+        icon: mdi:package-up
+
+  $binary_sensor.vibration:
+    text: "{{ self_binary_text('Detected', 'Clear') }}"
+    icon: mdi:crop-portrait
+    states:
+      'on':
+        icon: mdi:vibrate
+
+  $binary_sensor.window:
+    text: "{{ self_binary_text('Open', 'Closed') }}"
+    icon: mdi:window-closed
+    states:
+      'on':
+        icon: mdi:window-open
+
+pages:
+  $root:
+    buttons: []
+
+  $light:
+    buttons: []

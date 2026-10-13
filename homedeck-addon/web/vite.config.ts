@@ -3,6 +3,10 @@ import monacoEditorPlugin from 'vite-plugin-monaco-editor-esm';
 
 export default defineConfig({
     base: './',
+    esbuild: {
+        jsx: 'automatic',
+        jsxImportSource: 'preact',
+    },
     build: {
         rollupOptions: {
             output: {
