@@ -1,8 +1,8 @@
 ---
 name: HomeDeck Manager
-version: "0.1.2"
+version: "0.2.0"
 slug: homedeck_manager_ingress
-description: Ingress addon to manage HomeDeck devices
+description: Visual and YAML editor for HomeDeck devices
 arch:
   - amd64
   - aarch64

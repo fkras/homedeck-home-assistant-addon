@@ -3,22 +3,38 @@
 Edit your [HomeDeck](https://github.com/redphx/homedeck) configuration from inside
 Home Assistant instead of over SSH.
 
-This add-on adds a panel to the Home Assistant sidebar with a YAML editor for the
-deck's `configuration.yml`, live validation against the device's own schema, a
-start/stop control, and a live log view.
+This add-on adds a panel to the Home Assistant sidebar with a **visual editor**
+that shows the Ulanzi D200 as it will look - every key, every page - plus the
+YAML editor for the deck's `configuration.yml`, live validation against the
+device's own schema, a start/stop control, and a live log view.
 
 > This is a fork of [redphx/homedeck-home-assistant-addon](https://github.com/redphx/homedeck-home-assistant-addon)
 > with fixes described in [Changes in this fork](#changes-in-this-fork).
 
 ## What it is (and isn't)
 
-**It is** a schema-aware YAML editor (Monaco — the editor from VS Code). You get
-autocomplete, inline error squiggles, and a Problems list, driven by the JSON
-schema that the connected device serves. Saving is blocked while the config has
-errors.
+**It is** two views of one YAML file:
 
-**It is not** a drag-and-drop button designer. You arrange buttons by editing
-YAML, not by dragging tiles on a grid.
+- **Visual** - the D200's 13 keys and small window, rendered the way HomeDeck
+  draws them (presets, entity state, icons, text). Click a key to edit its
+  icon, label, actions and per-state looks; drag keys to rearrange them; manage
+  pages and presets; and set the deck-wide options in **Deck settings** -
+  brightness, labels, dimming and the night schedule, and the D200's own
+  firmware sleep, error alert and screensaver.
+- **YAML** - a schema-aware editor (Monaco, the editor from VS Code) with
+  autocomplete, inline errors, and a Problems list, driven by the JSON schema
+  the connected device serves.
+
+The YAML stays the only source of truth, and it's what gets saved. Every visual
+change is written into it as a normal edit - comments, quoting and formatting
+are kept, so a change touches only its own lines - and undo works across both
+views. Saving is blocked while the config has errors.
+
+**It is not** a renderer of the deck itself: the preview is drawn in your
+browser by a port of HomeDeck's own pipeline. It matches HomeDeck's output
+closely, but Jinja templates (other than a few common shapes) and `local:`
+images are shown as placeholders, and the label font is an approximation of the
+firmware's.
 
 **The deck does not plug into your Home Assistant machine.** The add-on finds
 HomeDeck devices on your LAN over mDNS and talks to them over HTTP. The deck
@@ -107,11 +123,28 @@ Refresh button.
 | Control | What it does |
 |:--|:--|
 | Device dropdown | Selects which deck to edit, when several are on the network |
-| Editor | Edits that device's `assets/configuration.yml`. Autocomplete: `Ctrl+Space` |
-| **Update configuration** | Saves to the device. Disabled while Problems is non-empty |
+| **Visual** / **YAML** | Switches between the deck view and the YAML editor - same file |
+| A key | Opens the button editor: entity, label, presets, icon (searchable MDI, brand and Phosphor sets), text, tap and hold actions, per-state overrides. Empty fields show what the button inherits and from where |
+| Drag a key | Swaps it with another key, or moves it to an empty one |
+| Right-click a key | Duplicate, clear, remove, show in YAML, open the page it links to |
+| Page tabs | Switch pages; **+ Page** adds one; the ⋮ menu renames it, changes its ID (updating every button that links to it) or deletes it |
+| **Preview** Live / On / Off | Shows entities in their current Home Assistant state, or all on / all off |
+| **Deck settings** | Brightness, label style, dimming and night schedule, firmware sleep, error alerts, screensaver, navigation key positions |
+| **Save** (`Ctrl/⌘ S`) | Saves to the device. Disabled while there are errors |
+| Undo / Redo | Covers visual and YAML edits alike |
 | **Start** / **Stop** | Starts or stops `deck.py` on the device |
 | Problems | Schema violations. Click one to jump to its line |
-| Logs | Live output from `deck.py` (last 50 lines) |
+| Logs | Live output from `deck.py` |
+
+The button editor also warns about the mistakes that are easy to make and
+silent on the deck: an action whose domain doesn't match the entity's
+(`light.toggle` on a `switch.*` does nothing), the `$light` preset replacing your
+icon while the light is on, a bare `https://` icon (it needs `url:`), and an
+unquoted `on` state key, which YAML reads as `true`.
+
+Entity and action suggestions come from Home Assistant's API, which is why the
+add-on asks for `homeassistant_api` access. Without it everything still works,
+minus the suggestions and the live state in the preview.
 
 The deck hot-reloads its configuration on save — no restart needed, and the
 screen redraws in place.
@@ -171,6 +204,9 @@ former: `sudo systemctl disable --now homedeck`.
 |:--|:--|
 | mDNS discovery reads `answers` as well as `additionals` | python-zeroconf (used by `server.py`) puts every record in `answers` and leaves `additionals` empty, so devices were discovered by name but never got an address or port — `/devices` always returned an empty list and the UI sat on "Scanning for devices" |
 | SRV records are applied before A records | The A handler matches on the SRV target, so it silently dropped the address if the records arrived in the other order |
+| Pasted YAML is kept verbatim | Monaco re-indented pasted lines, which in YAML changes the nesting |
+| Visual editor | See [What it is](#what-it-is-and-isnt) |
+| Logs use `wss://` over HTTPS | When Home Assistant is served over HTTPS (e.g. Nabu Casa), the browser blocks a `ws://` socket as mixed content, so the log view stayed empty |
 
 Both were verified against a live `server.py`: discovery now returns the device
 with its address, port, and version, and the proxy reaches `/v1/configuration`
@@ -192,10 +228,27 @@ machine rather than in a container while developing.
 |:--|:--|
 | `homedeck-addon/config.yaml` | Add-on manifest — Ingress, ports, architectures |
 | `homedeck-addon/Dockerfile` | Build (Bun) |
-| `web/server.ts` | mDNS scanner, HTTP/WS proxy, static file server |
-| `web/src/index.ts` | Frontend — device list, Monaco editor, logs panel |
-| `web/index.html` | Page structure |
-| `web/src/style.styl` | Styles (Stylus) |
+| `web/server.ts` | mDNS scanner, HTTP/WS proxy, Home Assistant lookups, static file server |
+| `web/src/yaml/document.ts` | The YAML document: parsing as YAML 1.1, comment-preserving edits, minimal diffs |
+| `web/src/deck/` | Ports of HomeDeck's preset resolution, page layout and icon rendering |
+| `web/src/editor.ts` | Monaco, and the single path every change goes through |
+| `web/src/model.ts` | Reads and writes the visual editor makes |
+| `web/src/ui/` | The interface (Preact) |
+| `web/tests/` | `bun test` |
+
+`src/deck/layout.ts` and `presets.ts` must behave exactly like HomeDeck's
+`render_buttons` and `apply_presets`, quirks included, or the preview shows keys
+the deck doesn't. The layout port was checked against the Python on 400 random
+pages; `src/deck/configuration.base.yml` is a copy of HomeDeck's defaults, used
+only when the device doesn't serve them.
+
+For development without a deck or Home Assistant:
+
+| Variable | Effect |
+|:--|:--|
+| `HOMEDECK_DEVICES=ip:port,…` | Lists these devices, besides any mDNS finds |
+| `HOMEDECK_MDNS=0` | Turns mDNS discovery off - so a test instance can't find, and save to, a real deck |
+| `HA_API_URL`, `HA_TOKEN` | Home Assistant API to use outside Supervisor |
 
 ### Device API
 
@@ -207,6 +260,7 @@ The add-on proxies a deliberately small, whitelisted surface:
 | `GET` | `/v1/configuration` | Read current YAML |
 | `POST` | `/v1/configuration` | Write YAML (validated server-side) |
 | `GET` | `/v1/schema` | JSON schema used by the editor |
+| `GET` | `/v1/base_configuration` | HomeDeck's defaults, for the preview (optional; newer HomeDeck) |
 | `POST` | `/v1/start`, `/v1/stop` | Control `deck.py` |
 | `WS` | `/v1/ws` | Status and log stream |
 
