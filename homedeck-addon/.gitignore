@@ -8,7 +8,7 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
-dist
+# dist is committed: see web/source-hash.ts
 dist-ssr
 *.local
 

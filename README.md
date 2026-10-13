@@ -218,9 +218,16 @@ and `/v1/schema`.
 ```bash
 cd homedeck-addon/web
 bun install
-bun run build        # outputs to dist/, which server.ts serves
+bun run build        # type-checks and writes dist/, which server.ts serves
 bun run server.ts    # http://localhost:4663
 ```
+
+**`dist/` is committed.** Home Assistant builds the add-on's image on its own
+machine, and bundling the editor there needs ~1 GB of RAM - small Home
+Assistant boxes swapped for 20+ minutes per update. So the image only
+installs the server's runtime packages and copies in the committed build. Run
+`bun run build` and commit `dist/` with any frontend change: `bun test` fails
+if `dist/` doesn't match the source (`source-hash.ts`).
 
 The server needs host networking to receive mDNS, so run it directly on your
 machine rather than in a container while developing.
@@ -235,7 +242,8 @@ machine rather than in a container while developing.
 | `web/src/editor.ts` | Monaco, and the single path every change goes through |
 | `web/src/model.ts` | Reads and writes the visual editor makes |
 | `web/src/ui/` | The interface (Preact) |
-| `web/tests/` | `bun test` |
+| `web/dist/` | The built frontend, committed - see Development |
+| `web/tests/` | `bun test`, including a check that `dist/` is up to date |
 
 `src/deck/layout.ts` and `presets.ts` must behave exactly like HomeDeck's
 `render_buttons` and `apply_presets`, quirks included, or the preview shows keys

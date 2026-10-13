@@ -6,7 +6,12 @@
  * typing and clicking share one undo history and the YAML view is always
  * exactly what will be saved.
  */
-import * as monaco from 'monaco-editor';
+// The editor's core and YAML only. 'monaco-editor' itself also brings every
+// other language Monaco ships - some 80 extra files in the build - and only
+// YAML is ever edited here.
+import 'monaco-editor/esm/vs/editor/edcore.main';
+import 'monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution';
+import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 import { configureMonacoYaml } from 'monaco-yaml';
 

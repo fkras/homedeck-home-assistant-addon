@@ -1,0 +1,2 @@
+# The image is built from the committed web/dist; local installs stay out
+web/node_modules

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.1
+
+- Updates install in seconds instead of minutes. Home Assistant builds the
+  add-on on its own machine, and that build bundled the editor - about 1 GB
+  of RAM, so a small Home Assistant box swapped for 20 minutes or more (in
+  1 GB it was killed outright). The add-on now ships its frontend already
+  built; the image only installs the server's four packages. It is ~10 MB
+  instead of ~250 MB.
+- The editor loads only Monaco's YAML support rather than every language,
+  and no longer builds language workers it never used.
+
 ## 0.4.0
 
 - Choose when a key's fade starts: **On press** (the default) or **When Home
