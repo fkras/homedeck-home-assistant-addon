@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.0
+
+- Fix typing in the button editor: the field lost focus after every key, as
+  did fields in Deck settings and the new-page dialog.
+- Duplicate a key from its hover icon, the editor (which then opens the
+  copy), Alt/Option-drag onto an empty key, or "Copy to <page>". The copy goes
+  into the next free key instead of shifting the keys after it.
+- Fade between states: a button's `transition` (seconds) cross-fades its key
+  when its entity changes state - e.g. a light that dims in. Set it on the
+  States tab; the preview fades the way the deck will. Needs a HomeDeck that
+  supports `transition`; with an older one the setting is disabled.
+
 ## 0.2.0
 
 - A visual editor for the D200, alongside the YAML editor. It shows each page's

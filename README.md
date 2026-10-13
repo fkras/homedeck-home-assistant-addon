@@ -124,9 +124,10 @@ Refresh button.
 |:--|:--|
 | Device dropdown | Selects which deck to edit, when several are on the network |
 | **Visual** / **YAML** | Switches between the deck view and the YAML editor - same file |
-| A key | Opens the button editor: entity, label, presets, icon (searchable MDI, brand and Phosphor sets), text, tap and hold actions, per-state overrides. Empty fields show what the button inherits and from where |
-| Drag a key | Swaps it with another key, or moves it to an empty one |
-| Right-click a key | Duplicate, clear, remove, show in YAML, open the page it links to |
+| A key | Opens the button editor: entity, label, presets, icon (searchable MDI, brand and Phosphor sets), text, tap and hold actions, per-state overrides, and a fade between states. Empty fields show what the button inherits and from where |
+| Drag a key | Swaps it with another key, or moves it to an empty one. Alt/Option-drag drops a copy |
+| Copy icon on a key | Duplicates it into the next free key |
+| Right-click a key | Duplicate, copy to another page, clear, remove, show in YAML, open the page it links to |
 | Page tabs | Switch pages; **+ Page** adds one; the ⋮ menu renames it, changes its ID (updating every button that links to it) or deletes it |
 | **Preview** Live / On / Off | Shows entities in their current Home Assistant state, or all on / all off |
 | **Deck settings** | Brightness, label style, dimming and night schedule, firmware sleep, error alerts, screensaver, navigation key positions |
