@@ -42,18 +42,26 @@ export function Modal({ title, subtitle, onClose, children, footer, wide, class:
     class?: string;
 }) {
     const ref = useRef<HTMLDivElement>(null);
+    // Callers pass a new onClose on every render; keep the latest without
+    // re-running the effect below
+    const onCloseRef = useRef(onClose);
+    onCloseRef.current = onClose;
 
+    // Once, when it opens. Re-running this on every render moved focus from
+    // whatever input was being typed in back to the modal, after each key.
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
-            if (e.key === 'Escape' && !document.querySelector('.menu, .dialog-layer .dialog:not(:last-child)')) {
+            const layers = document.querySelectorAll('.modal-layer');
+            const topmost = layers[layers.length - 1]?.contains(ref.current);
+            if (e.key === 'Escape' && topmost && !document.querySelector('.menu')) {
                 e.stopPropagation();
-                onClose();
+                onCloseRef.current();
             }
         };
         window.addEventListener('keydown', onKey);
-        ref.current?.focus();
+        (ref.current?.querySelector<HTMLElement>('[data-autofocus]') ?? ref.current)?.focus();
         return () => window.removeEventListener('keydown', onKey);
-    }, [onClose]);
+    }, []);
 
     return createPortal(
         <div class="modal-layer" onMouseDown={e => e.target === e.currentTarget && onClose()}>
@@ -239,7 +247,7 @@ function PromptDialog({ request, onDone }: { request: Extract<DialogRequest, { k
                             class={`input ${errors[f.key] ? 'invalid' : ''}`}
                             value={values[f.key]}
                             placeholder={f.placeholder}
-                            autoFocus={i === 0}
+                            data-autofocus={i === 0 ? true : undefined}
                             onInput={e => setValues({ ...values, [f.key]: (e.target as HTMLInputElement).value })}
                         />
                         {errors[f.key] ? <span class="field-error">{errors[f.key]}</span> : f.hint && <span class="field-hint">{f.hint}</span>}
