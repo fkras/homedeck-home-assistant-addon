@@ -5,9 +5,51 @@ import type { Dict } from '../deck/presets';
 import { normalizeColor, renderKey } from '../deck/render';
 import { Glyph } from './primitives';
 
-/** The key art, drawn the way HomeDeck draws it. */
-export function KeyCanvas({ config, onIssues }: { config: Dict | null; onIssues?: (issues: string[]) => void }) {
+// HomeDeck's transitions.py: one frame per 100 ms, at most 20, smoothstep
+const FRAME_INTERVAL = 0.1;
+const MAX_FRAMES = 20;
+const ease = (t: number) => t * t * (3 - 2 * t);
+
+/**
+ * Cross-fade `target` to `next` the way HomeDeck fades a key on the deck:
+ * in the same few steps, rather than smoothly, so the preview doesn't
+ * promise more than the deck shows.
+ */
+function crossfade(target: HTMLCanvasElement, next: HTMLCanvasElement, duration: number, timer: { current?: ReturnType<typeof setTimeout> }) {
+    const from = document.createElement('canvas');
+    from.width = target.width;
+    from.height = target.height;
+    from.getContext('2d')!.drawImage(target, 0, 0);
+
+    const ctx = target.getContext('2d')!;
+    const steps = Math.max(1, Math.min(MAX_FRAMES, Math.round(duration / FRAME_INTERVAL)));
+    let step = 0;
+
+    const tick = () => {
+        step++;
+        ctx.clearRect(0, 0, target.width, target.height);
+        ctx.globalAlpha = 1;
+        ctx.drawImage(from, 0, 0);
+        ctx.globalAlpha = ease(step / steps);
+        ctx.drawImage(next, 0, 0);
+        ctx.globalAlpha = 1;
+        if (step < steps) {
+            timer.current = setTimeout(tick, (duration * 1000) / steps);
+        }
+    };
+    tick();
+}
+
+/**
+ * The key art, drawn the way HomeDeck draws it. When `fadeKey` (the entity
+ * state shown) changes and the button has a `transition`, it fades into the
+ * new look as the deck would; any other change - editing a colour - is
+ * drawn at once.
+ */
+export function KeyCanvas({ config, onIssues, fadeKey }: { config: Dict | null; onIssues?: (issues: string[]) => void; fadeKey?: string | null }) {
     const ref = useRef<HTMLCanvasElement>(null);
+    const shownFadeKey = useRef<string | null | undefined>(undefined);
+    const timer = useRef<ReturnType<typeof setTimeout>>();
     const signature = JSON.stringify(config);
 
     useEffect(() => {
@@ -18,17 +60,29 @@ export function KeyCanvas({ config, onIssues }: { config: Dict | null; onIssues?
             if (cancelled || !ref.current) {
                 return;
             }
+
             const target = ref.current;
-            target.width = scratch.width;
-            target.height = scratch.height;
-            target.getContext('2d')!.drawImage(scratch, 0, 0);
+            const duration = Number(config?.transition) || 0;
+            const fade = duration > 0 && shownFadeKey.current !== undefined && fadeKey !== shownFadeKey.current;
+            shownFadeKey.current = fadeKey;
+
+            clearTimeout(timer.current);
+            if (fade && target.width === scratch.width) {
+                crossfade(target, scratch, Math.min(duration, 5), timer);
+            } else {
+                target.width = scratch.width;
+                target.height = scratch.height;
+                target.getContext('2d')!.drawImage(scratch, 0, 0);
+            }
             onIssues?.(issues);
         });
 
         return () => {
             cancelled = true;
         };
-    }, [signature]);
+    }, [signature, fadeKey]);
+
+    useEffect(() => () => clearTimeout(timer.current), []);
 
     return <canvas class="key-canvas" ref={ref} width={196} height={196} />;
 }

@@ -1770,6 +1770,22 @@ button.chip:hover {
   font-size: 12px;
 }
 
+.fade-field {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.fade-field .number-unit .input {
+  max-width: 90px;
+}
+
+.chip:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .add-state {
   display: flex;
   gap: 8px;

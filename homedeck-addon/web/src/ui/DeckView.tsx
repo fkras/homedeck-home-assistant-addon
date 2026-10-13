@@ -400,7 +400,7 @@ function DeckKey({ slot, position, model, state, entries, dragging, dropping, re
             {...common}
             {...dropHandlers}
         >
-            <KeyCanvas config={slot.hidden ? null : display.config} onIssues={setIssues} />
+            <KeyCanvas config={slot.hidden ? null : display.config} onIssues={setIssues} fadeKey={entityState ?? 'none'} />
             {!slot.hidden && <KeyLabel name={display.config.name} labelStyle={model.labelStyle} templated={templatedName} />}
             <span class="key-badges">
                 {slot.hidden && <KeyBadge icon="eye-off-outline" title="visibility: hidden - the key shows blank" />}

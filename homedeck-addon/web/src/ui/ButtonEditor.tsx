@@ -249,7 +249,7 @@ export function ButtonEditor({ state, editing }: { state: State; editing: Editin
             <div class="editor-layout">
                 <aside class="editor-preview">
                     <div class="key key-large">
-                        <KeyCanvas config={display.config} onIssues={setIssues} />
+                        <KeyCanvas config={display.config} onIssues={setIssues} fadeKey={display.state ?? 'none'} />
                         {!isPreset && <KeyLabel name={display.config.name} labelStyle={model.labelStyle} templated={display.templated.includes('name')} />}
                         {isPreset && <KeyLabel name={editing.kind === 'preset' ? editing.name : ''} labelStyle={model.labelStyle} />}
                     </div>
@@ -327,7 +327,19 @@ export function ButtonEditor({ state, editing }: { state: State; editing: Editin
                             </div>
                         )}
                         {tab === 'states' && (
-                            <StatesTab draft={draft} set={set} inheritedStates={inherited.config.states ?? {}} entityId={draft.entity_id} hass={state.hass} onPreview={setPreview} />
+                            <StatesTab
+                                draft={draft}
+                                set={set}
+                                inheritedStates={inherited.config.states ?? {}}
+                                entityId={draft.entity_id}
+                                hass={state.hass}
+                                onPreview={setPreview}
+                                transition={{
+                                    supported: Boolean(state.schema?.$defs?.Transition),
+                                    inherited: placeholder('transition'),
+                                    origin: origin('transition'),
+                                }}
+                            />
                         )}
 
                         <OtherKeys draft={draft} />
@@ -749,13 +761,16 @@ function ActionEditor({ label, hint, value, inherited, inheritedFrom, entityId, 
     );
 }
 
-function StatesTab({ draft, set, inheritedStates, entityId, hass, onPreview }: {
+const FADE_CHOICES = [0, 0.3, 0.6, 1];
+
+function StatesTab({ draft, set, inheritedStates, entityId, hass, onPreview, transition }: {
     draft: Dict;
     set: (key: string, value: unknown) => void;
     inheritedStates: Dict;
     entityId?: string;
     hass: HassStates;
     onPreview: (state: string) => void;
+    transition: { supported: boolean; inherited?: string; origin: string | null };
 }) {
     const own: Dict = draft.states ?? {};
     const [adding, setAdding] = useState('');
@@ -775,8 +790,48 @@ function StatesTab({ draft, set, inheritedStates, entityId, hass, onPreview }: {
     const suggestions = [...new Set([current, ...COMMON_STATES].filter(Boolean) as string[])].filter(s => !(s in own));
     const all = [...new Set([...Object.keys(inheritedStates), ...Object.keys(own)])];
 
+    const fade = draft.transition;
+    const effectiveFade = Number(fade ?? transition.inherited ?? 0);
+
     return (
         <div class="states-tab">
+            <Field
+                label="Fade between states"
+                inherited={'transition' in draft ? null : transition.origin}
+                onReset={'transition' in draft ? () => set('transition', undefined) : undefined}
+                hint={transition.supported
+                    ? <>When the state changes, the deck fades the key into its new look - about 10 steps a second. Switch the preview between states to see it.</>
+                    : <span class="warn-text">This HomeDeck doesn't support fades yet - update it on the deck to use them.</span>}
+            >
+                <div class="fade-field">
+                    <div class="chips">
+                        {FADE_CHOICES.map(s => (
+                            <button
+                                key={s}
+                                type="button"
+                                class={`chip ${effectiveFade === s ? 'active' : ''}`}
+                                disabled={!transition.supported}
+                                // Instant needs writing only to override a preset's fade
+                                onClick={() => set('transition', s === 0 && !Number(transition.inherited) ? undefined : s)}
+                            >
+                                {s === 0 ? 'Instant' : `${s} s`}
+                            </button>
+                        ))}
+                    </div>
+                    <div class="number-unit">
+                        <NumberInput
+                            value={fade}
+                            placeholder={transition.inherited ?? '0'}
+                            min={0}
+                            max={5}
+                            step={0.1}
+                            onChange={v => set('transition', v)}
+                        />
+                        <span class="dim">s</span>
+                    </div>
+                </div>
+            </Field>
+
             <p class="dim">
                 Change how the key looks while its entity is in a given state. Only the fields you set are
                 overridden; everything else comes from the button.
@@ -879,7 +934,7 @@ function PresetChain({ model, draft, hass }: { model: Model; draft: Dict; hass: 
 }
 
 const FORM_KEYS = new Set([
-    'presets', 'entity_id', 'domain', 'name', 'visibility', 'tap_action', 'hold_action', 'states',
+    'presets', 'entity_id', 'domain', 'name', 'visibility', 'tap_action', 'hold_action', 'states', 'transition',
     'icon', 'icon_variant', 'icon_size', 'icon_padding', 'icon_offset', 'icon_border_radius', 'icon_border_width',
     'icon_border_color', 'icon_brightness', 'icon_color', 'icon_background_color', 'icon_size_mode',
     'text', 'text_color', 'text_align', 'text_font', 'text_size', 'text_offset',
