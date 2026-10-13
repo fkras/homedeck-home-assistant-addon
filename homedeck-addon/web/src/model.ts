@@ -234,28 +234,102 @@ export function removeButton(pageId: string, index: number, mode: 'shift' | 'cle
     });
 }
 
-export function duplicateButton(pageId: string, index: number): EditResult {
-    return editConfig(doc => {
-        const seq = getSeq(doc, buttonsPath(pageId));
-        const node = seq?.items[index] as any;
-        if (!seq || !node) {
-            return;
-        }
+export type CopyResult = EditResult & { index?: number; position?: number };
 
+/** The first free key on a page, at or after `from` (sub-page * 13 + key). */
+function freeKey(layout: PageLayout, from: number): { position: number; nullIndex?: number } | null {
+    for (let p = 0; p < layout.reachable; p++) {
+        for (let k = 0; k < BUTTON_COUNT; k++) {
+            const position = p * BUTTON_COUNT + k;
+            const slot = layout.pages[p][k];
+            if (position < from) {
+                continue;
+            }
+            if (slot.kind === 'null') {
+                return { position, nullIndex: slot.index };
+            }
+            if (slot.kind === 'empty') {
+                return { position };
+            }
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Copy a button into the next free key - on its own page after the original,
+ * or on another page - so nothing else moves. With no free key the copy goes
+ * right after the original on its page, or at the end of another page.
+ */
+export function copyButton(model: Model, hass: HassStates, pageId: string, index: number, targetPageId = pageId, at?: number): CopyResult {
+    const entries = pageEntries(model, pageId);
+    const value = entries[index];
+    if (!value || typeof value !== 'object') {
+        return { ok: false, error: 'Nothing to copy' };
+    }
+
+    const targetEntries = pageEntries(model, targetPageId);
+    const options = layoutOptions(model, targetPageId, hass);
+    const layout = layoutPage(targetEntries, options);
+
+    let from = 0;
+    if (at !== undefined) {
+        from = at;
+    } else if (targetPageId === pageId) {
+        layout.pages.forEach((slots, p) => slots.forEach((slot, k) => {
+            if (slot.kind === 'button' && slot.index === index) {
+                from = p * BUTTON_COUNT + k + 1;
+            }
+        }));
+    }
+
+    const free = freeKey(layout, from);
+    if (at !== undefined && free?.position !== at) {
+        return { ok: false, error: 'Drop the copy on an empty key' };
+    }
+
+    let placedIndex: number | undefined;
+    let placedPosition = free?.position;
+    let placed: unknown[] | null = null;
+    if (free && free.nullIndex === undefined) {
+        placed = placeAt(targetEntries, free.position, value, options);
+    }
+
+    const result = editConfig(doc => {
+        ensurePage(doc, targetPageId);
+        const source = getSeq(doc, buttonsPath(pageId))!;
+        const seq = getSeq(doc, buttonsPath(targetPageId))!;
+        const node = source.items[index] as any;
         const copy = node.clone ? node.clone() : doc.createNode(node);
         // The copy shouldn't repeat a comment that labels the original
         copy.commentBefore = undefined;
         copy.spaceBefore = listSpacing(seq);
 
-        const next = seq.items[index + 1] as any;
-        if (next !== undefined && (next === null || (isScalar(next) && next.value === null))) {
-            // An empty key right after it: fill that, so nothing else moves
-            copy.spaceBefore = next.spaceBefore ?? copy.spaceBefore;
-            seq.items[index + 1] = copy;
-        } else {
+        if (free?.nullIndex !== undefined) {
+            const gap = seq.items[free.nullIndex] as Spaced;
+            copy.spaceBefore = gap?.spaceBefore ?? copy.spaceBefore;
+            seq.items[free.nullIndex] = copy;
+            placedIndex = free.nullIndex;
+        } else if (placed) {
+            const spaced = listSpacing(seq);
+            for (let i = targetEntries.length; i < placed.length - 1; i++) {
+                appendItem(doc, seq, null, spaced);
+            }
+            seq.items.push(copy);
+            placedIndex = seq.items.length - 1;
+        } else if (targetPageId === pageId) {
             seq.items.splice(index + 1, 0, copy);
+            placedIndex = index + 1;
+            placedPosition = undefined;
+        } else {
+            seq.items.push(copy);
+            placedIndex = seq.items.length - 1;
+            placedPosition = undefined;
         }
     });
+
+    return result.ok ? { ...result, index: placedIndex, position: placedPosition } : result;
 }
 
 export const PAGE_ID_RE = /^[$a-z0-9_\-.]+$/;

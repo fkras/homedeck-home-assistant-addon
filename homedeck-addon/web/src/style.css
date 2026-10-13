@@ -1064,6 +1064,44 @@ button.chip:hover {
   color: var(--warn);
 }
 
+.key-actions {
+  position: absolute;
+  top: 4%;
+  left: 4%;
+  display: flex;
+  gap: 3px;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.key:hover .key-actions,
+.key:focus-visible .key-actions {
+  opacity: 1;
+}
+
+.key-action {
+  display: inline-flex;
+  padding: 4px;
+  border-radius: 6px;
+  background: rgba(20, 22, 26, 0.88);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.key-action:hover {
+  background: var(--accent-strong);
+}
+
+.key-flash {
+  animation: key-flash 1.5s ease-out;
+}
+
+@keyframes key-flash {
+  0%, 30% {
+    box-shadow: 0 0 0 3px var(--accent), 0 0 28px rgba(59, 165, 245, 0.7);
+  }
+}
+
 .key-state-dot {
   width: 7px;
   height: 7px;

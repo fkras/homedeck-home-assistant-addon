@@ -2,9 +2,9 @@ import { useState } from 'preact/hooks';
 
 import { BUTTON_COUNT, type Slot, type SystemAction } from '../deck/layout';
 import { transformButton, type Dict } from '../deck/presets';
-import { setState, toast, type State } from '../store';
+import { flashKey, setState, toast, type State } from '../store';
 import {
-    addPage, changePageId, countPageLinks, deletePage, deriveModel, displayButton, duplicateButton, moveButton,
+    addPage, changePageId, copyButton, countPageLinks, deletePage, deriveModel, displayButton, moveButton,
     PAGE_ID_RE, pageEntries, pageLayout, presetUsage, removeButton, renamePage, systemButton, type Model,
 } from '../model';
 import type { EditResult } from '../editor';
@@ -24,6 +24,36 @@ export function report(result: EditResult, success?: string) {
         toast('ok', success, 2500);
     }
     return result.ok;
+}
+
+function pageLabel(model: Model, id: string) {
+    const page = model.pages.find(p => p.id === id);
+    return page ? pageTitle(page) : id;
+}
+
+/**
+ * Copy a button into the next free key (or onto `at`) and highlight it.
+ * Returns the copy's index in the YAML list, or null if it failed.
+ */
+export function duplicate(model: Model, state: State, pageId: string, index: number, target = pageId, at?: number): number | null {
+    const result = copyButton(model, state.hass, pageId, index, target, at);
+    if (!result.ok) {
+        toast('error', result.error);
+        return null;
+    }
+
+    const where = result.position !== undefined ? `key ${(result.position % BUTTON_COUNT) + 1}${result.position >= BUTTON_COUNT ? `, sub-page ${Math.floor(result.position / BUTTON_COUNT) + 1}` : ''}` : 'the end of the page';
+    if (target === pageId) {
+        if (result.position !== undefined) {
+            setState({ subPage: Math.floor(result.position / BUTTON_COUNT) });
+        }
+        toast('ok', result.position !== undefined ? `Copied to ${where}` : 'Copied - no free key, so later keys moved along one', 2500);
+    } else {
+        toast('ok', `Copied to "${pageLabel(model, target)}", ${where}`, 3000);
+    }
+
+    flashKey(target, result.index!);
+    return result.index!;
 }
 
 export function showInYaml(path: (string | number)[]) {
@@ -52,11 +82,20 @@ export function DeckView({ state }: { state: State }) {
 
     const openPage = (id: string) => setState({ pageId: id, subPage: 0 });
 
-    const onDrop = (slot: Slot, position: number) => {
+    const onDrop = (slot: Slot, position: number, copy: boolean) => {
         const from = dragFrom;
         setDragFrom(null);
         setDropTarget(null);
         if (from === null || readOnly) {
+            return;
+        }
+        if (copy) {
+            // Alt/Option-drag drops a copy
+            if (slot.kind === 'button') {
+                toast('info', 'Drop the copy on an empty key');
+            } else if (slot.kind !== 'system') {
+                duplicate(model, state, pageId, from, pageId, position);
+            }
             return;
         }
         if (slot.kind === 'button' && slot.index === from) {
@@ -78,7 +117,13 @@ export function DeckView({ state }: { state: State }) {
             const target = entry?.tap_action?.action === '$page.go_to' ? String(entry.tap_action.data ?? '') : null;
             items = [
                 { label: 'Edit…', icon: 'pencil', onSelect: () => setState({ editing: { kind: 'button', pageId, index: slot.index } }) },
-                { label: 'Duplicate', icon: 'content-copy', disabled: readOnly, onSelect: () => report(duplicateButton(pageId, slot.index), 'Duplicated') },
+                { label: 'Duplicate', icon: 'content-copy', disabled: readOnly, onSelect: () => duplicate(model, state, pageId, slot.index) },
+                ...model.pages.filter(p => p.id !== pageId).map(p => ({
+                    label: `Copy to "${pageTitle(p)}"`,
+                    icon: 'chevron-right' as const,
+                    disabled: readOnly,
+                    onSelect: () => duplicate(model, state, pageId, slot.index, p.id),
+                })),
                 ...(target && model.pages.some(p => p.id === target) ? [{ label: `Open page "${target}"`, icon: 'chevron-right' as const, onSelect: () => openPage(target) }] : []),
                 { label: 'Show in YAML', icon: 'code-braces', onSelect: () => showInYaml(['pages', pageId, 'buttons', slot.index]) },
                 'separator',
@@ -226,13 +271,15 @@ export function DeckView({ state }: { state: State }) {
                                     setDropTarget(null);
                                 }}
                                 onDragOver={() => setDropTarget(position)}
-                                onDrop={() => onDrop(slot, position)}
+                                onDrop={copy => onDrop(slot, position, copy)}
+                                onDuplicate={() => slot.kind === 'button' && duplicate(model, state, pageId, slot.index)}
+                                flash={slot.kind === 'button' && state.flash?.pageId === pageId && state.flash.index === slot.index}
                             />
                         );
                     })}
                     <SmallWindow onClick={() => toast('info', 'The small window is drawn by the deck\'s firmware. Tap it on the deck to cycle stats, clock and background - it can\'t be set from the configuration.', 7000)} />
                 </div>
-                <div class="deck-hint">Click a key to edit · drag to move · right-click for more</div>
+                <div class="deck-hint">Click a key to edit · drag to move, Alt/Option-drag to copy · right-click for more</div>
             </div>
 
             {layout.gone.length > 0 && (
@@ -260,7 +307,7 @@ export function DeckView({ state }: { state: State }) {
     );
 }
 
-function DeckKey({ slot, position, model, state, entries, dragging, dropping, readOnly, onOpen, onMenu, onDragStart, onDragEnd, onDragOver, onDrop }: {
+function DeckKey({ slot, position, model, state, entries, dragging, dropping, readOnly, flash, onOpen, onMenu, onDragStart, onDragEnd, onDragOver, onDrop, onDuplicate }: {
     slot: Slot;
     position: number;
     model: Model;
@@ -269,12 +316,14 @@ function DeckKey({ slot, position, model, state, entries, dragging, dropping, re
     dragging: boolean;
     dropping: boolean;
     readOnly: boolean;
+    flash: boolean;
     onOpen: () => void;
     onMenu: (x: number, y: number) => void;
     onDragStart: () => void;
     onDragEnd: () => void;
     onDragOver: () => void;
-    onDrop: () => void;
+    onDrop: (copy: boolean) => void;
+    onDuplicate: () => void;
 }) {
     const [issues, setIssues] = useState<string[]>([]);
     const dropHandlers = {
@@ -283,11 +332,14 @@ function DeckKey({ slot, position, model, state, entries, dragging, dropping, re
                 return;
             }
             e.preventDefault();
+            if (e.dataTransfer) {
+                e.dataTransfer.dropEffect = e.altKey ? 'copy' : 'move';
+            }
             onDragOver();
         },
         onDrop: (e: DragEvent) => {
             e.preventDefault();
-            onDrop();
+            onDrop(e.altKey);
         },
     };
     const common = {
@@ -334,10 +386,13 @@ function DeckKey({ slot, position, model, state, entries, dragging, dropping, re
     return (
         <button
             type="button"
-            class={`key ${slot.hidden ? 'key-hidden' : ''} ${dropping ? 'drop' : ''}`}
+            class={`key ${slot.hidden ? 'key-hidden' : ''} ${dropping ? 'drop' : ''} ${flash ? 'key-flash' : ''}`}
             draggable={!readOnly}
             onDragStart={e => {
-                e.dataTransfer?.setData('text/plain', String(slot.index));
+                if (e.dataTransfer) {
+                    e.dataTransfer.setData('text/plain', String(slot.index));
+                    e.dataTransfer.effectAllowed = 'copyMove';
+                }
                 onDragStart();
             }}
             onDragEnd={onDragEnd}
@@ -352,6 +407,37 @@ function DeckKey({ slot, position, model, state, entries, dragging, dropping, re
                 {problems.length > 0 && <KeyBadge icon="code-braces" tone="warning" title={problems.join('\n')} />}
                 {entityState === 'on' && <span class="key-state-dot" title={`${entry.entity_id}: on`} />}
             </span>
+            {!readOnly && (
+                <span class="key-actions">
+                    <span
+                        role="button"
+                        tabIndex={-1}
+                        class="key-action"
+                        title="Duplicate into the next free key"
+                        aria-label="Duplicate"
+                        onClick={e => {
+                            e.stopPropagation();
+                            onDuplicate();
+                        }}
+                    >
+                        <Glyph name="content-copy" size={13} />
+                    </span>
+                    <span
+                        role="button"
+                        tabIndex={-1}
+                        class="key-action"
+                        title="More"
+                        aria-label="More"
+                        onClick={e => {
+                            e.stopPropagation();
+                            const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                            onMenu(r.left, r.bottom + 4);
+                        }}
+                    >
+                        <Glyph name="dots-vertical" size={13} />
+                    </span>
+                </span>
+            )}
         </button>
     );
 }

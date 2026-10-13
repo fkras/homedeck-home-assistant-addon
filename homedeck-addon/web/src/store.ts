@@ -52,6 +52,8 @@ export type State = {
     saving: boolean;
     // A path to reveal in the YAML editor once it's visible
     reveal: Path | null;
+    // A key to highlight briefly, e.g. a copy that was just made
+    flash: { pageId: string; index: number } | null;
 };
 
 const initial: State = {
@@ -83,6 +85,7 @@ const initial: State = {
     toast: null,
     saving: false,
     reveal: null,
+    flash: null,
 };
 
 let state = initial;
@@ -132,6 +135,14 @@ export function toast(kind: Toast['kind'], message: string, ms = 4000) {
             setState({ toast: null });
         }
     }, ms);
+}
+
+let flashTimer: ReturnType<typeof setTimeout> | undefined;
+
+export function flashKey(pageId: string, index: number) {
+    clearTimeout(flashTimer);
+    setState({ flash: { pageId, index } });
+    flashTimer = setTimeout(() => setState({ flash: null }), 1600);
 }
 
 export function isDirty(s: State = state): boolean {

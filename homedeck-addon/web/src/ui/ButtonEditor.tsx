@@ -6,13 +6,13 @@ import { parseIcon, PHOSPHOR_VARIANTS } from '../deck/icons';
 import { BUTTON_COUNT } from '../deck/layout';
 import { clone, deepMerge, domainOf, isTemplate, transformButton, type Dict, type HassStates } from '../deck/presets';
 import type { HassServices } from '../api';
-import { setState, type Editing, type State } from '../store';
+import { getState, setState, type Editing, type State } from '../store';
 import {
     createButtonAt, deletePreset, deriveModel, displayButton, pageEntries, presetChain, presetUsage, removeButton,
     saveButton, savePreset, type Model,
 } from '../model';
 import { deepEqual } from '../yaml/document';
-import { report, showInYaml } from './DeckView';
+import { duplicate, report, showInYaml } from './DeckView';
 import { IconPicker, IconPreview } from './IconPicker';
 import { KeyCanvas, KeyLabel } from './Key';
 import {
@@ -203,6 +203,18 @@ export function ButtonEditor({ state, editing }: { state: State; editing: Editin
                                 setState({ editing: null });
                             }
                         }}>Remove</Button>
+                    )}
+                    {editing.kind === 'button' && (
+                        <Button icon="content-copy" variant="ghost" title="Apply your changes, then open a copy in the next free key" onClick={() => {
+                            if (changed && !report(saveButton(editing.pageId, editing.index, original, draft))) {
+                                return;
+                            }
+                            const now = getState();
+                            const index = duplicate(deriveModel(now.text, now.baseText), now, editing.pageId, editing.index);
+                            if (index !== null) {
+                                setState({ editing: { kind: 'button', pageId: editing.pageId, index } });
+                            }
+                        }}>Duplicate</Button>
                     )}
                     {editing.kind === 'preset' && !editing.isNew && (
                         <Button icon="trash-can-outline" variant="danger" onClick={async () => {
