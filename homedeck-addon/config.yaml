@@ -1,6 +1,6 @@
 ---
 name: HomeDeck Manager
-version: "0.3.0"
+version: "0.3.1"
 slug: homedeck_manager_ingress
 description: Visual and YAML editor for HomeDeck devices
 arch:

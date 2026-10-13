@@ -234,9 +234,9 @@ export function DeckView({ state }: { state: State }) {
 
             {subPage >= layout.reachable && (
                 <Callout kind="warning">
-                    This sub-page can't be reached on the deck: HomeDeck only adds a <b>Next</b> key when the
-                    previous sub-page overflows before its own system keys are inserted. Free up a key earlier on
-                    the page, or move these buttons to another page.
+                    This sub-page can't be reached on the deck: no <b>Next</b> key on the sub-page before it leads
+                    here. Check the Next key's position in Deck settings → Navigation, or move these buttons to
+                    another page.
                 </Callout>
             )}
 

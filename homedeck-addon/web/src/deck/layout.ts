@@ -4,8 +4,8 @@
  * A port of the paging loop in `PageElement.render_buttons` (elements.py):
  * `gone` buttons are skipped, the system buttons (back, previous, next) are
  * inserted at their positions, and anything past 13 keys spills onto further
- * sub-pages. Kept quirk-for-quirk identical so a key in the editor is the key
- * on the deck - tests/layout.test.ts checks it against the Python.
+ * sub-pages. Kept identical so a key in the editor is the key on the deck -
+ * tests/layout.test.ts checks it against outputs recorded from the Python.
  */
 
 export const BUTTON_COUNT = 13;
@@ -35,9 +35,9 @@ export type LayoutOptions = {
 export type PageLayout = {
     // One array of `perPage` slots per sub-page
     pages: Slot[][];
-    // How many of those the deck can get to, through Next keys. Paging can
-    // strand entries past the last one; they're kept in `pages` so they can
-    // be seen and fixed.
+    // How many of those the deck can get to, through Next keys. HomeDeck
+    // before the fix in a3c0080 could strand entries past the last one, and a
+    // Next key at position 0 still can; they're kept in `pages` to be seen.
     reachable: number;
     // Entries the deck skips entirely (visibility: gone)
     gone: number[];
@@ -69,8 +69,8 @@ export function layoutPage(entries: unknown[], options: LayoutOptions): PageLayo
 
     entries.forEach((entry, index) => {
         if (isEmptyEntry(entry)) {
-            // NB: the original index, not index - skipped, as in Python
-            raws.set(index, { kind: 'null', index });
+            // Moves up past gone buttons like any other entry
+            raws.set(index - skipped, { kind: 'null', index });
             return;
         }
 
@@ -85,15 +85,16 @@ export function layoutPage(entries: unknown[], options: LayoutOptions): PageLayo
     });
 
     let current = raws;
-    let newRaws = raws;
     const insert = (item: Item, at: number) => {
         current = shiftRight(current, at);
         current.set(at, item);
     };
+    // Keys the page spans so far: one past the last one used
+    const extent = () => (current.size ? Math.max(...current.keys()) + 1 : 0);
 
     let start = 0;
     let pageNumber = 1;
-    while (start < newRaws.size) {
+    while (start < extent()) {
         if (options.isSubPage && pageNumber === 1) {
             const position = options.positions['$page.back'];
             if (position > 0) {
@@ -108,13 +109,12 @@ export function layoutPage(entries: unknown[], options: LayoutOptions): PageLayo
             }
         }
 
-        // Compared against the size before this pass's insertions - Python
-        // rebinds new_raws only at the end of the loop body
-        if (start + perPage < newRaws.size) {
+        // After this pass's own Back or Previous: either can push the last
+        // button of a full sub-page onto the next one
+        if (start + perPage < extent()) {
             insert({ kind: 'system', action: '$page.next' }, start + (options.positions['$page.next'] - 1));
         }
 
-        newRaws = current;
         start += perPage;
         pageNumber++;
     }

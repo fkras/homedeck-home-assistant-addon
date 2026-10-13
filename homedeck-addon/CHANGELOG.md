@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.1
+
+- The preview pages buttons over sub-pages the way HomeDeck now does: a
+  sub-page that its Back or Previous key pushes over gets a Next key, rather
+  than leaving its last button on a sub-page the deck can't reach. Matches
+  HomeDeck a3c0080; with an older HomeDeck the preview can differ in that
+  case.
+
 ## 0.3.0
 
 - Fix typing in the button editor: the field lost focus after every key, as

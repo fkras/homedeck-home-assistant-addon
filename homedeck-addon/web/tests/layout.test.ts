@@ -1,7 +1,7 @@
 /**
  * The layout port against outputs recorded from HomeDeck's own
- * PageElement.render_buttons. A randomised run of 400 pages x 7 sub-pages
- * matched it exactly; these are the shapes worth keeping.
+ * PageElement.render_buttons (as fixed in a3c0080). A randomised run of 400
+ * pages x 7 sub-pages matched it exactly; these are the shapes worth keeping.
  */
 import { describe, expect, test } from 'bun:test';
 
@@ -57,23 +57,25 @@ describe('layoutPage', () => {
         expect(pages[0][0]).toEqual({ kind: 'button', index: 0, hidden: true });
     });
 
-    test("a null placed after a gone button keeps its original index, as in Python", () => {
-        // Python: new_raws[index] = None uses the raw index, then the next
-        // button lands on real_index - the same key - and replaces it
+    test('a null after a gone button moves up with the rest', () => {
         const entries = [{ name: 'a', visibility: 'gone' }, null, { name: 'c' }];
         const { pages } = layoutPage(entries, options(false));
-        expect(names(pages[0], entries).slice(0, 3)).toEqual(['-', 'c', '-']);
+        expect(names(pages[0], entries).slice(0, 3)).toEqual(['null', 'c', '-']);
     });
 
-    test('a sub-page with exactly 13 buttons strands the last one', () => {
-        // Back pushes b12 onto a second sub-page, but Next is decided from the
-        // count before Back was inserted - so nothing leads there
+    test('a full sub-page gets a Next key', () => {
+        // Back pushes b12 off the first sub-page; Next is decided after that
         const entries = buttons(13);
         const { pages, reachable } = layoutPage(entries, options(true));
-        expect(pages.length).toBe(2);
-        expect(reachable).toBe(1);
-        expect(names(pages[0], entries)).not.toContain('next');
-        expect(names(pages[1], entries)[0]).toBe('b12');
+        expect(names(pages[0], entries).slice(0, 4)).toEqual(['back', 'b0', 'next', 'b1']);
+        expect(names(pages[1], entries).slice(0, 3)).toEqual(['b11', 'previous', 'b12']);
+        expect(reachable).toBe(2);
+    });
+
+    test('Previous pushing a later sub-page over gets a Next key too', () => {
+        const { pages, reachable } = layoutPage(buttons(25), options(false));
+        expect(pages.length).toBe(3);
+        expect(reachable).toBe(3);
     });
 });
 
