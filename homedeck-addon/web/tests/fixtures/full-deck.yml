@@ -1,0 +1,232 @@
+# Built from guides/dashboard.yaml - same entities, names and icons.
+#
+#   cp assets/configuration.full-deck.yml.example assets/configuration.yml
+#
+# The Home Assistant dashboard's `phu:` icons are the custom-brand-icons pack,
+# which HomeDeck reaches as `cbi:` - the names are identical, only the prefix
+# differs. The dashboard's temperature/humidity sensors are left out.
+#
+# Page 1 is the dashboard's "Main" grid, with two buttons leading to the other
+# two grids. The back arrow on those pages is added automatically.
+#
+# NOTE: the big button (the small window) is not configurable here - it is
+# drawn by the deck's firmware and cycled by tapping it.
+
+brightness: 90
+
+sleep:
+  sleep_timeout: 0      # never blank: this is a wall-mounted deck
+  dim_timeout: 30
+  dim_brightness: 10
+  schedule:
+    - from: '22:00'
+      to: '06:00'
+      brightness: 10
+
+label_style:
+  align: bottom
+  color: FFFFFF
+  font: 8
+  show_title: true
+  size: 9
+  weight: 80
+
+system_buttons:
+  $page.back:
+    position: 1
+  $page.previous:
+    position: 2
+  $page.next:
+    position: 3
+
+presets:
+  # Shared tile shape. icon_padding shrinks the glyph so the background colour
+  # reads as a filled tile rather than a border.
+  tile:
+    icon_padding: 42
+    icon_border_radius: 18
+    icon_size: 196
+    icon_background_color: 3A4450
+    text_align: bottom
+    text_size: 20
+
+  # "On" look shared by lights and switches: orange tile, yellow icon, and the
+  # button's own icon kept as-is.
+  #
+  # Deliberately does NOT inherit $light, whose states.'on' block swaps the
+  # icon for a brightness-dependent mdi:lightbulb-on-NN and would override the
+  # cbi: icons set per button.
+  on.tile:
+    presets: tile
+    icon_color: FFFFFF
+    states:
+      'on':
+        icon_background_color: B36B00      # orange
+        icon_color: FFEC27                 # yellow
+
+  # A light.* entity.
+  light.tile:
+    presets: on.tile
+    tap_action:
+      action: light.toggle
+
+  # A switch.* entity. Home Assistant picks the service by domain, so a switch
+  # needs switch.toggle - light.toggle is silently ignored on a non-light.
+  switch.tile:
+    presets: on.tile
+    tap_action:
+      action: switch.toggle
+
+  # A button.* entity - press only, no on/off state.
+  button.tile:
+    presets: tile
+    tap_action:
+      action: button.press
+
+  # Navigation to another page.
+  nav.tile:
+    presets: tile
+    icon_background_color: 5B3A8E
+
+pages:
+  # ---------------------------------------------------------------- Main ----
+  $root:
+    name: Main
+    buttons:
+      - presets: light.tile
+        entity_id: light.llusteri
+        name: Llusteri
+        icon: cbi:ceiling-infuse
+
+      - presets: light.tile
+        entity_id: light.kuzhina
+        name: Kuzhina
+        icon: cbi:ceiling-buratto-three
+
+      - presets: light.tile
+        entity_id: light.tavolina
+        name: Tavolina
+        icon: mdi:globe-light
+
+      - presets: switch.tile
+        entity_id: switch.salloni_tokesorja
+        name: Salloni
+        icon: cbi:wellner-solid
+
+      - presets: switch.tile
+        entity_id: switch.wifi_smart_switch_2
+        name: Switch 2
+        icon: cbi:ceiling-adore-alt
+
+      - presets: switch.tile
+        entity_id: switch.wifi_smart_switch
+        name: Switch 1
+        icon: cbi:ceiling-muscari
+
+      - presets: switch.tile
+        entity_id: switch.zdritma
+        name: Zdritma
+        icon: mdi:lightbulb-outline
+
+      - presets: switch.tile
+        entity_id: switch.terroma
+        name: Terroma
+        icon: mdi:lightbulb-off-outline
+
+      - presets: switch.tile
+        entity_id: switch.bedroom_1_paranojamode
+        name: Paranoja
+        icon: mdi:curtains-closed
+
+      - presets: switch.tile
+        entity_id: switch.bedroom_1_panoramaview
+        name: Panorama
+        icon: mdi:curtains
+
+      - presets: switch.tile
+        entity_id: switch.bedroom_1_nali_krejt_dritat_1
+        name: Nal Dritat
+        icon: mdi:lightbulb-night-outline
+
+      # ---- navigation to the other two grids ----
+      - presets: nav.tile
+        name: Fjetjes
+        icon: cbi:rooms-bedroom
+        tap_action:
+          action: $page.go_to
+          data: bedroom
+
+      - presets: nav.tile
+        name: Tjera
+        icon: cbi:tabbar-home
+        tap_action:
+          action: $page.go_to
+          data: other
+
+  # ------------------------------------------------- Dhoma e Fjetjes --------
+  bedroom:
+    name: Dhoma e Fjetjes
+    buttons:
+      - presets: switch.tile
+        entity_id: switch.smart_plug_in_unit_switch_1
+        name: Plug 1
+        icon: cbi:ceiling-fair-semiflush
+
+      - presets: switch.tile
+        entity_id: switch.smart_plug_in_unit_switch_2
+        name: Plug 2
+        icon: mdi:power-socket-eu
+
+      - presets: light.tile
+        entity_id: light.dekori_i_drejt
+        name: Dekori
+        icon: cbi:ikea-paparlamp
+
+      - presets: switch.tile
+        entity_id: switch.banjo
+        name: Banjo
+        icon: mdi:toilet
+
+      - presets: light.tile
+        entity_id: light.office
+        name: Office
+        icon: mdi:desk-lamp
+
+      - presets: light.tile
+        entity_id: light.mbathtorja
+        name: Mbathtorja
+        icon: cbi:wall-impress-narrow
+
+      - presets: switch.tile
+        entity_id: switch.wifi_smart_switch_3
+        name: Switch 3
+        icon: mdi:toilet
+
+      - presets: switch.tile
+        entity_id: switch.sonoff_100228dab6_1
+        name: Femijet
+        icon: cbi:rooms-kids-bedroom
+
+  # ------------------------------------------------------- et et jerat ------
+  other:
+    name: et et jerat
+    buttons:
+      - presets: button.tile
+        entity_id: button.zezaki_shortcut_3
+        name: Shortcut 3
+        icon: mdi:human-capacity-increase
+
+      - presets: light.tile
+        entity_id: light.bojleri
+        name: Bojleri
+        icon: mdi:water-boiler
+
+      - presets: button.tile
+        entity_id: button.zezaki_shortcut_3
+        name: Kuzhina
+        icon: cbi:kitchen-alt
+
+      - presets: button.tile
+        entity_id: button.zezaki_shortcut_1
+        name: Eni
+        icon: mdi:silverware-clean

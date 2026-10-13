@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.2.0
+
+- A visual editor for the D200, alongside the YAML editor. It shows each page's
+  13 keys and small window as HomeDeck will draw them, and edits buttons
+  (entity, label, presets, icon, text, actions, per-state looks), pages,
+  presets and the deck-wide settings - including the firmware sleep, error
+  alert and screensaver options. Every change is written into the YAML, which
+  is still what gets saved; comments and formatting are kept.
+- Icon search over Material Design, brand (`cbi:`) and Phosphor icons.
+- Entity and action suggestions from Home Assistant. The add-on now asks for
+  `homeassistant_api` access for this.
+- Saving reports whether HomeDeck accepted the configuration. It used to
+  ignore the answer, so a rejected save looked like a successful one.
+- The log view works when Home Assistant is served over HTTPS (e.g. Nabu
+  Casa). It opened a `ws://` socket, which browsers block on an HTTPS page.
+
 ## 0.1.2
 
 - Paste YAML verbatim. Monaco re-indents pasted text by default, which added

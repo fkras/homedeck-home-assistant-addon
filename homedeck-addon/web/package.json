@@ -6,12 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "bun test"
   },
   "devDependencies": {
     "@types/express": "^5.0.1",
     "@types/multicast-dns": "^7.2.4",
-    "stylus": "^0.64.0",
     "typescript": "~5.7.2",
     "vite": "^6.2.0",
     "vite-plugin-monaco-editor-esm": "^2.0.2"
@@ -24,7 +24,9 @@
     "monaco-editor": "^0.52.2",
     "monaco-yaml": "^5.3.1",
     "multicast-dns": "^7.2.5",
+    "preact": "10.29.7",
     "vite-express": "^0.20.0",
-    "ws": "^8.18.1"
+    "ws": "^8.18.1",
+    "yaml": "2.7.0"
   }
 }
