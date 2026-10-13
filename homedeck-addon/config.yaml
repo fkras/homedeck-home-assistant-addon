@@ -12,6 +12,8 @@ ingress: true
 panel_icon: 'mdi:view-grid-plus'
 boot: auto
 host_network: true
+# Entity and action suggestions, and live state in the preview
+homeassistant_api: true
 ingress_port: 4663
 ports:
   4663/tcp: 4663

@@ -26,6 +26,27 @@ type MdnsDevice = {
 
 const MDNS_SERVICES: Record<string, MdnsDevice> = {};
 
+// Devices given by address, for when mDNS can't reach them (another subnet,
+// multicast filtered) and for development: HOMEDECK_DEVICES=192.168.0.27:3325
+const STATIC_DEVICES: MdnsDevice[] = (process.env.HOMEDECK_DEVICES ?? '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean)
+    .map(hostPort => {
+        const [address, port] = hostPort.split(':');
+        return {
+            name: hostPort,
+            address,
+            port: Number(port) || 3325,
+            properties: { version: 'static', api_version: '1' },
+        };
+    });
+
+// Home Assistant's REST API. Inside the add-on, Supervisor proxies it and
+// injects SUPERVISOR_TOKEN (config.yaml: homeassistant_api: true).
+const HA_API_URL = process.env.HA_API_URL ?? 'http://supervisor/core/api';
+const HA_TOKEN = process.env.SUPERVISOR_TOKEN ?? process.env.HA_TOKEN ?? '';
+
 
 class RemoteWebSocketManager {
     // Map to keep a persistent remote connection per host
@@ -202,14 +223,14 @@ app.use(compression());
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 // Serve Vite built files
 app.use(express.static(path.join(__dirname, 'dist')))
 
 app.get('/devices', async (_, res) => {
     const services: MdnsDevice[] = [];
 
-    for (const service of Object.values(MDNS_SERVICES)) {
+    for (const service of [...STATIC_DEVICES, ...Object.values(MDNS_SERVICES)]) {
         const url = `http://${service.address}:${service.port}/v${service.properties?.api_version}/status`;
         try {
             const resp = await fetch(url, {
@@ -235,19 +256,21 @@ app.get('/proxy/:host/v:api_version/:endpoint', async (req, res) => {
         return;
     }
 
-    if (!['configuration', 'schema'].includes(endpoint)) {
+    if (!['configuration', 'base_configuration', 'schema'].includes(endpoint)) {
         res.send({ error: `Invalid endpoint: ${endpoint}` });
         return;
     }
 
     const url = `http://${host}/v${apiVersion}/${endpoint}`;
     try {
-        if (endpoint === 'schema') {
-            const body = await (await fetch(url)).text();
-            res.send(body);
+        const response = await fetch(url);
+        if (!response.ok) {
+            // e.g. base_configuration on a HomeDeck that predates it
+            res.status(response.status).json({ error: `${response.status} from ${url}` });
+        } else if (endpoint === 'schema') {
+            res.send(await response.text());
         } else {
-            const body = await (await fetch(url)).json();
-            res.json(body);
+            res.json(await response.json());
         }
     } catch (e) {
         console.log(e);
@@ -287,7 +310,58 @@ app.post('/proxy/:host/v:api_version/:endpoint', async (req, res) => {
     }
 });
 
-scanMdns();
+async function haGet(path: string): Promise<any> {
+    if (!HA_TOKEN) {
+        throw new Error('No Home Assistant token (homeassistant_api is off, or not running as an add-on)');
+    }
+
+    const response = await fetch(`${HA_API_URL}${path}`, {
+        headers: { Authorization: `Bearer ${HA_TOKEN}` },
+    });
+    if (!response.ok) {
+        throw new Error(`Home Assistant answered ${response.status} for ${path}`);
+    }
+
+    return response.json();
+}
+
+// Only what the editor uses: the entity picker, live state in the preview,
+// and the icon / name HomeDeck falls back to.
+const STATE_ATTRIBUTES = ['friendly_name', 'icon', 'device_class', 'unit_of_measurement', 'brightness'];
+
+app.get('/ha/states', async (_, res) => {
+    try {
+        const states: any[] = await haGet('/states');
+        res.json({
+            data: states.map(s => ({
+                entity_id: s.entity_id,
+                state: s.state,
+                attributes: Object.fromEntries(STATE_ATTRIBUTES.filter(k => k in s.attributes).map(k => [k, s.attributes[k]])),
+            })),
+        });
+    } catch (e) {
+        res.json({ error: (e as Error).message });
+    }
+});
+
+app.get('/ha/services', async (_, res) => {
+    try {
+        const domains: { domain: string; services: Record<string, { name?: string; description?: string }> }[] = await haGet('/services');
+        const data: Record<string, Record<string, string>> = {};
+        for (const { domain, services } of domains) {
+            data[domain] = Object.fromEntries(Object.entries(services).map(([service, info]) => [service, info.name || info.description || '']));
+        }
+        res.json({ data });
+    } catch (e) {
+        res.json({ error: (e as Error).message });
+    }
+});
+
+// HOMEDECK_MDNS=0 turns discovery off, leaving only HOMEDECK_DEVICES - for
+// development, so a test instance can't find and edit a real deck
+if (process.env.HOMEDECK_MDNS !== '0') {
+    scanMdns();
+}
 
 const server = http.createServer(app);
 const wss = new WebSocketServer({ noServer: true });
